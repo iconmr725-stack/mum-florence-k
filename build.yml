@@ -1,0 +1,31 @@
+name: Build Mum Florence APK
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Download offline voice model (bundled into the app)
+        run: |
+          mkdir -p app/src/main/assets
+          curl -L -o m.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+          unzip -q m.zip
+          mv vosk-model-small-en-us-0.15 app/src/main/assets/model
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - run: gradle assembleDebug --no-daemon
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Mum Florence (build ${{ github.run_number }})
+          files: app/build/outputs/apk/debug/app-debug.apk
