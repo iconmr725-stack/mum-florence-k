@@ -10,13 +10,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Put files into the right folders
+        run: |
+          A=app/src/main/java/com/mumflorence/app
+          mkdir -p $A app/src/main/res/values app/src/main/res/xml app/src/main/assets
+          for f in MainActivity Store Contacts Brain Replies Accessibility Receivers FlorenceService; do
+            if [ -f "$f.kt" ]; then mv "$f.kt" $A/; fi
+          done
+          if [ -f AndroidManifest.xml ]; then mv AndroidManifest.xml app/src/main/; fi
+          if [ -f strings.xml ]; then mv strings.xml app/src/main/res/values/; fi
+          if [ -f accessibility_config.xml ]; then mv accessibility_config.xml app/src/main/res/xml/; fi
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.mumflorence.app"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.mumflorence.app"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = "17" }
+              lint { abortOnError = false; checkReleaseBuilds = false }
+              packaging { jniLibs { useLegacyPackaging = true } }
+          }
+          dependencies {
+              implementation("net.java.dev.jna:jna:5.13.0@aar")
+              implementation("com.alphacephei:vosk-android:0.3.45")
+          }
+          EOF
+          find app -type f | sort
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
       - name: Download offline voice model
         run: |
-          mkdir -p app/src/main/assets
           curl -L -o m.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
           unzip -q m.zip
           mv vosk-model-small-en-us-0.15 app/src/main/assets/model
